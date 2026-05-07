@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>どすこい！どうぶつ場所（カウントダウン版）</title>
+    <title>どすこい！どうぶつ場所（調整版）</title>
     <style>
         body {
             margin: 0;
@@ -31,36 +31,37 @@
             background: radial-gradient(circle, #e0c5a0 60%, #8b4513 61%, #8b4513 63%, transparent 64%);
             display: flex;
             justify-content: center;
-            align-items: center; /* 動物の高さを中央で揃える */
+            align-items: center;
             overflow: hidden;
         }
 
-        /* 動物たち */
+        /* 動物たちの共通設定 */
         .animal {
             font-size: 100px;
             position: absolute;
-            transition: left 0.1s ease-out, transform 0.1s ease-out;
+            transition: left 0.1s ease-out;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end; /* 下揃えでemojiを配置 */
             z-index: 10;
-            height: 200px; /*emojiと名前が入る十分な高さ*/
-            bottom: 50%; /* 土俵の中央線に配置 */
-            transform: translate(-50%, 50%); /* 中央寄せ */
+            bottom: 50%; /* 画面中央の高さ */
+            width: 150px; /* 位置計算を安定させるための幅 */
         }
 
-        /* プレイヤー側のemoji反転を戻す */
-        #player #p-emoji { transform: scaleX(1); }
-        /* 敵側のemoji反転 */
-        #enemy #e-emoji { transform: scaleX(-1); }
+        /* 接点を基準とした左右の配置切り分け */
+        #player {
+            transform: translate(-100%, 50%); /* 接点から左側に表示 */
+        }
+        #enemy {
+            transform: translate(0%, 50%); /* 接点から右側に表示 */
+        }
 
         /* プレイヤーの星 */
         .player-star {
             color: gold;
             font-size: 50px;
             position: absolute;
-            top: -40px; /* emojiの上に配置 */
+            top: -40px;
             animation: star-blink 1s infinite alternate;
         }
 
@@ -68,6 +69,10 @@
             0% { opacity: 0.5; transform: scale(1); }
             100% { opacity: 1; transform: scale(1.2); }
         }
+
+        /* 絵文字の反転設定 */
+        #p-emoji { transform: scaleX(1); }
+        #e-emoji { transform: scaleX(-1); display: inline-block; }
 
         .name-tag {
             font-size: 18px;
@@ -78,7 +83,7 @@
             font-weight: bold;
             border: 2px solid #ccc;
             white-space: nowrap;
-            margin-top: 5px; /* emojiの下にスペース */
+            margin-top: 5px;
         }
 
         /* 操作エリア */
@@ -95,7 +100,7 @@
         }
 
         #input-area.disabled {
-            background-color: #ccc; /* 入力無効時はグレー */
+            background-color: #ccc;
             cursor: default;
         }
 
@@ -110,7 +115,6 @@
             text-align: center;
         }
 
-        /* カウントダウンの数字用 */
         .count-number {
             font-size: 80px;
             color: yellow;
@@ -164,17 +168,19 @@
             100% { transform: scale(2) translateY(-50px); opacity: 0; }
         }
 
-        /* 動物が揺れるアニメーション */
-        @keyframes animal-shake {
-            0% { transform: translate(-50%, 50%) rotate(0deg); }
-            25% { transform: translate(-50%, 50%) rotate(5deg); }
-            50% { transform: translate(-50%, 50%) rotate(0deg); }
-            75% { transform: translate(-50%, 50%) rotate(-5deg); }
-            100% { transform: translate(-50%, 50%) rotate(0deg); }
+        /* 揺れるアニメーション（接点ベースなのでrotateのみ） */
+        @keyframes animal-shake-p {
+            0% { transform: translate(-100%, 50%) rotate(0deg); }
+            50% { transform: translate(-100%, 50%) rotate(-5deg); }
+            100% { transform: translate(-100%, 50%) rotate(0deg); }
         }
-        .shaking {
-            animation: animal-shake 0.3s ease-in-out;
+        @keyframes animal-shake-e {
+            0% { transform: translate(0%, 50%) rotate(0deg); }
+            50% { transform: translate(0%, 50%) rotate(5deg); }
+            100% { transform: translate(0%, 50%) rotate(0deg); }
         }
+        .shaking-p { animation: animal-shake-p 0.3s ease-in-out; }
+        .shaking-e { animation: animal-shake-e 0.3s ease-in-out; }
     </style>
 </head>
 <body>
@@ -204,22 +210,17 @@
 
 <script>
     const animals = [
-        {emoji: '🐘', name: 'ぞう'},
-        {emoji: '🦁', name: 'らいおん'},
-        {emoji: '🐼', name: 'ぱんだ'},
-        {emoji: '🐯', name: 'とら'},
-        {emoji: '🐰', name: 'うさぎ'},
-        {emoji: '🐨', name: 'こあら'},
-        {emoji: '🐵', name: 'さる'},
-        {emoji: '🐸', name: 'かえる'},
-        {emoji: '🐶', name: 'いぬ'},
-        {emoji: '🐱', name: 'ねこ'}
+        {emoji: '🐘', name: 'ぞう'}, {emoji: '🦁', name: 'らいおん'},
+        {emoji: ' Panda', name: 'ぱんだ'}, {emoji: '🐯', name: 'とら'},
+        {emoji: '🐰', name: 'うさぎ'}, {emoji: '🐨', name: 'こあら'},
+        {emoji: '🐵', name: 'さる'}, {emoji: '🐸', name: 'かえる'},
+        {emoji: '🐶', name: 'いぬ'}, {emoji: '🐱', name: 'ねこ'}
     ];
 
-    let playerPos = 45; // 中央より少し左
+    let playerPos = 50; // 接点の位置（%）
     let isPlaying = false;
-    let inputEnabled = false; // 入力許可フラグ
-    let comTimer = null; // setTimeout用のID
+    let inputEnabled = false;
+    let comTimer = null;
 
     const playerEl = document.getElementById('player');
     const enemyEl = document.getElementById('enemy');
@@ -229,17 +230,15 @@
     const titleText = document.getElementById('title-text');
 
     function startGame() {
-        // 動物をランダムに選ぶ
         const pChoice = animals[Math.floor(Math.random() * animals.length)];
-        let eIndex = Math.floor(Math.random() * animals.length);
-        const eChoice = animals[eIndex];
+        const eChoice = animals[Math.floor(Math.random() * animals.length)];
 
         document.getElementById('p-emoji').innerText = pChoice.emoji;
         document.getElementById('p-name').innerText = pChoice.name;
         document.getElementById('e-emoji').innerText = eChoice.emoji;
         document.getElementById('e-name').innerText = eChoice.name;
 
-        playerPos = 45; // 初期位置
+        playerPos = 50; 
         updatePosition();
         overlay.style.display = 'none';
         isPlaying = true;
@@ -247,48 +246,30 @@
         inputAreaEl.classList.add('disabled');
 
         if (comTimer) clearTimeout(comTimer);
-
-        // カウントダウン演出開始
         startCountdown();
     }
 
-    // カウントダウン演出関数
     function startCountdown() {
         showCountMessage('<span class="count-number">3</span>');
-        
-        setTimeout(() => {
-            if (!isPlaying) return;
-            showCountMessage('<span class="count-number">2</span>');
-        }, 1000);
-        
-        setTimeout(() => {
-            if (!isPlaying) return;
-            showCountMessage('<span class="count-number">1</span>');
-        }, 2000);
-        
+        setTimeout(() => isPlaying && showCountMessage('<span class="count-number">2</span>'), 1000);
+        setTimeout(() => isPlaying && showCountMessage('<span class="count-number">1</span>'), 2000);
         setTimeout(() => {
             if (!isPlaying) return;
             showCountMessage('はっけよーい、のこった！');
-            // 動物を揺らす演出
-            playerEl.classList.add('shaking');
-            enemyEl.classList.add('shaking');
+            playerEl.classList.add('shaking-p');
+            enemyEl.classList.add('shaking-e');
             setTimeout(() => {
-                playerEl.classList.remove('shaking');
-                enemyEl.classList.remove('shaking');
+                playerEl.classList.remove('shaking-p');
+                enemyEl.classList.remove('shaking-e');
             }, 300);
 
-            // この瞬間からゲーム開始
             inputEnabled = true;
             inputAreaEl.classList.remove('disabled');
-            scheduleNextComAttack(); // COM攻撃開始
+            scheduleNextComAttack();
             
-            // 0.5秒後に「ここをたたいてね」表示に戻す
             setTimeout(() => {
-                if (isPlaying && inputEnabled) {
-                    showCountMessage('ここを たたいてね！');
-                }
+                if (isPlaying && inputEnabled) showCountMessage('ここを たたいてね！');
             }, 500);
-
         }, 3000);
     }
 
@@ -296,33 +277,36 @@
         inputMessageEl.innerHTML = msg;
     }
 
-    // COMの攻撃をランダムな時間でスケジュールする関数
     function scheduleNextComAttack() {
-        if (!isPlaying || !inputEnabled) return; // 入力無効中は攻撃しない
-        let nextDelay = 1000 + Math.random() * 2000; // 1秒〜3秒
-        comTimer = setTimeout(comAttackLoop, nextDelay);
-    }
-
-    // COMの攻撃実行関数
-    function comAttackLoop() {
         if (!isPlaying || !inputEnabled) return;
 
-        playerPos -= 5; // COMが押し返す (強さはそのまま)
-        checkWinner();
-
-        // まだゲーム中なら、次の攻撃をスケジュール
-        if (isPlaying) {
-            scheduleNextComAttack();
+        // 敵のスピード調整ロジック
+        // 勝利ラインが 80% で、3タップ分(3x3=9%)手前、つまり 71% を超えるとスピードアップ
+        let delay;
+        if (playerPos >= 71) {
+            // スピードアップ：0.5秒〜1.0秒
+            delay = 500 + Math.random() * 500;
+        } else {
+            // 通常：1.0秒〜3.0秒
+            delay = 1000 + Math.random() * 2000;
         }
+        
+        comTimer = setTimeout(comAttackLoop, delay);
+    }
+
+    function comAttackLoop() {
+        if (!isPlaying || !inputEnabled) return;
+        playerPos -= 5; // 敵の押し
+        checkWinner();
+        if (isPlaying) scheduleNextComAttack();
     }
 
     function pushPlayer(e) {
-        if (!isPlaying || !inputEnabled) return; // 入力無効中は反応しない
+        if (!isPlaying || !inputEnabled) return;
         if (e) e.preventDefault();
         
-        playerPos += 3; // 自分が押す
+        playerPos += 3; // プレイヤーの押し
 
-        // エフェクト
         const x = e.clientX || (e.touches && e.touches[0].clientX) || window.innerWidth/2;
         const y = e.clientY || (e.touches && e.touches[0].clientY) || window.innerHeight * 0.8;
         createParticle(x, y);
@@ -331,18 +315,16 @@
     }
 
     function updatePosition() {
-        // プレイヤーの位置
+        // 二体の動物の「接点」を playerPos に設定
         playerEl.style.left = playerPos + '%';
-        // 敵はプレイヤーのすぐ右隣に配置 (距離は縮めたまま)
-        enemyEl.style.left = (playerPos + 5) + '%';
+        enemyEl.style.left = playerPos + '%';
     }
 
     function checkWinner() {
         updatePosition();
-
         if (playerPos > 80) {
             endGame('やったー！<br>' + document.getElementById('p-name').innerText + 'の かち！ 👑');
-        } else if (playerPos < 10) {
+        } else if (playerPos < 20) {
             endGame('ざんねん！<br>まけちゃった 😭');
         }
     }
@@ -351,11 +333,11 @@
         isPlaying = false;
         inputEnabled = false;
         inputAreaEl.classList.add('disabled');
-        if (comTimer) clearTimeout(comTimer); // タイマーをクリア
+        if (comTimer) clearTimeout(comTimer);
         titleText.innerHTML = msg;
         document.getElementById('start-btn').innerText = 'もう一回あそぶ';
         overlay.style.display = 'flex';
-        showCountMessage(''); // メッセージをクリア
+        showCountMessage('');
     }
 
     function createParticle(x, y) {
