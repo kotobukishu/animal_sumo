@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>どすこい！どうぶつ場所（完全調整版）</title>
+    <title>どすこい！どうぶつ場所（バランス調整版）</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
             background-color: #fdf5e6;
-            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            font-family: sans-serif;
             user-select: none;
             -webkit-user-select: none;
+            touch-action: manipulation;
         }
 
         #game-container {
@@ -20,10 +21,8 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
         }
 
-        /* 土俵エリア：配置を安定させるためrelativeのみに */
         #stage {
             flex: 1;
             width: 100%;
@@ -32,40 +31,52 @@
             overflow: hidden;
         }
 
-        /* 動物たちの共通設定 */
-        .animal {
+        /* 接点となる透明な基準線 */
+        #contact-point {
             position: absolute;
+            bottom: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            transition: left 0.1s ease-out;
+            z-index: 10;
+        }
+
+        .animal-wrapper {
+            position: absolute;
+            bottom: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            z-index: 10;
-            bottom: 50%; 
-            width: fit-content; /* 中身（絵文字）の幅に合わせる */
-            transition: left 0.1s ease-out;
-        }
-
-        /* 接点を基準とした左右の配置：これでピッタリくっつきます */
-        #player {
-            /* 右端が指定座標(left)にくるように左へ100%ずらす */
-            transform: translate(-100%, 50%); 
-        }
-        #enemy {
-            /* 左端が指定座標(left)にくるようにする */
-            transform: translate(0%, 50%); 
-        }
-
-        #p-emoji, #e-emoji {
-            font-size: 100px;
-            line-height: 1;
-            display: block;
             white-space: nowrap;
         }
 
-        /* プレイヤーの星 */
+        #player-wrapper {
+            right: 0;
+            padding-right: 2px;
+        }
+
+        #enemy-wrapper {
+            left: 0;
+            padding-left: 2px;
+        }
+
+        .emoji {
+            font-size: 80px;
+            line-height: 1;
+            display: block;
+        }
+
+        #p-emoji { transform: scaleX(1); }
+        #e-emoji { transform: scaleX(-1); }
+
         .player-star {
             color: gold;
             font-size: 40px;
-            height: 40px;
+            position: absolute;
+            top: -45px;
+            left: 50%;
+            transform: translateX(-50%);
             animation: star-blink 1s infinite alternate;
         }
 
@@ -74,87 +85,59 @@
             100% { opacity: 1; transform: scale(1.2); }
         }
 
-        /* 敵側のemoji反転 */
-        #e-emoji { transform: scaleX(-1); }
-
         .name-tag {
-            font-size: 18px;
+            font-size: 16px;
             background: white;
-            padding: 2px 10px;
+            padding: 2px 8px;
             border-radius: 10px;
             color: #333;
             font-weight: bold;
             border: 2px solid #ccc;
-            white-space: nowrap;
             margin-top: 5px;
         }
 
-        /* 操作エリア */
         #input-area {
             height: 40%;
-            width: 100%;
             background-color: #ff6347;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 -10px 0 rgba(0,0,0,0.1);
             cursor: pointer;
-            transition: background-color 0.2s;
         }
 
-        #input-area.disabled {
-            background-color: #ccc;
-        }
-
-        #input-area:not(.disabled):active {
-            background-color: #ff4500;
-        }
+        #input-area.disabled { background-color: #ccc; }
 
         #input-message {
             color: white;
-            font-size: 40px;
+            font-size: 32px;
             font-weight: bold;
             text-align: center;
         }
 
-        .count-number {
-            font-size: 80px;
-            color: yellow;
-            animation: count-down-pop 0.5s ease-out;
-        }
-
-        @keyframes count-down-pop {
-            0% { transform: scale(2); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        /* メッセージ */
         #msg-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.7);
             display: flex;
             flex-direction: column;
-            justify(content): center;
+            justify-content: center;
             align-items: center;
             z-index: 100;
         }
 
         .btn {
             background: #fff;
-            padding: 20px 40px;
-            font-size: 32px;
+            padding: 15px 30px;
+            font-size: 24px;
             border-radius: 50px;
-            border: 5px solid #ff6347;
-            cursor: pointer;
+            border: 4px solid #ff6347;
             margin-top: 20px;
-            box-shadow: 0 5px 0 #ccc;
+            cursor: pointer;
         }
 
         #title-text {
             color: white;
-            font-size: 42px;
-            text-shadow: 3px 3px 0 #000;
+            font-size: 36px;
             text-align: center;
             line-height: 1.4;
         }
@@ -170,36 +153,30 @@
             100% { transform: scale(2) translateY(-50px); opacity: 0; }
         }
 
-        /* 揺れるアニメーション */
-        @keyframes shake-p {
-            0% { transform: translate(-100%, 50%) rotate(0deg); }
-            50% { transform: translate(-100%, 50%) rotate(-5deg); }
-            100% { transform: translate(-100%, 50%) rotate(0deg); }
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-5deg); }
+            75% { transform: rotate(5deg); }
         }
-        @keyframes shake-e {
-            0% { transform: translate(0%, 50%) rotate(0deg); }
-            50% { transform: translate(0%, 50%) rotate(5deg); }
-            100% { transform: translate(0%, 50%) rotate(0deg); }
-        }
-        .shaking-p { animation: shake-p 0.3s ease-in-out; }
-        .shaking-e { animation: shake-e 0.3s ease-in-out; }
+        .shaking { animation: shake 0.2s ease-in-out infinite; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <div id="stage">
-        <div id="player" class="animal">
-            <span class="player-star">★</span>
-            <span id="p-emoji">🐘</span>
-            <div class="name-tag" id="p-name">きみ</div>
-        </div>
-        <div id="enemy" class="animal">
-            <div class="player-star" style="visibility: hidden;">★</div> <span id="e-emoji">🦁</span>
-            <div class="name-tag" id="e-name">ライオン</div>
+        <div id="contact-point">
+            <div id="player-wrapper" class="animal-wrapper">
+                <span class="player-star">★</span>
+                <span id="p-emoji" class="emoji">🐘</span>
+                <div class="name-tag" id="p-name">きみ</div>
+            </div>
+            <div id="enemy-wrapper" class="animal-wrapper">
+                <span id="e-emoji" class="emoji">🦁</span>
+                <div class="name-tag" id="e-name">ライオン</div>
+            </div>
         </div>
     </div>
-    
     <div id="input-area" class="disabled" onmousedown="pushPlayer(event)" ontouchstart="pushPlayer(event)">
         <div id="input-message"></div>
     </div>
@@ -211,6 +188,30 @@
 </div>
 
 <script>
+    // ==========================================
+    //   バランス調整領域 (ここを書き換えて調整)
+    // ==========================================
+    const CONFIG = {
+        PLAYER_TAP_POWER: 3,      // 1タップでプレイヤーが押す力 (%)
+        COM_PUSH_POWER: 5,        // 敵の1攻撃で押し返される力 (%)
+        
+        WIN_LINE: 90,             // この%を超えたら勝利
+        LOSE_LINE: 10,            // この%を下回ったら敗北
+
+        // 敵のスピード設定（ミリ秒：1000 = 1秒）
+        NORMAL_SPEED_MIN: 1000,   // 通常時の敵攻撃間隔（最短）
+        NORMAL_SPEED_MAX: 2500,   // 通常時の敵攻撃間隔（最長）
+        
+        // 追い詰められた（敵が本気を出す）設定
+        DANGER_TAP_COUNT: 5,      // 中央(50%)から何タップ押し込んだら敵が本気になるか
+        DANGER_SPEED_MIN: 400,    // 本気時の敵攻撃間隔（最短）
+        DANGER_SPEED_MAX: 800    // 本気時の敵攻撃間隔（最長）
+    };
+
+    // 本気モードが発動する座標を自動計算
+    const DANGER_THRESHOLD = 50 + (CONFIG.DANGER_TAP_COUNT * CONFIG.PLAYER_TAP_POWER);
+    // ==========================================
+
     const animals = [
         {emoji: '🐘', name: 'ぞう'}, {emoji: '🦁', name: 'らいおん'},
         {emoji: '🐼', name: 'ぱんだ'}, {emoji: '🐯', name: 'とら'},
@@ -224,20 +225,17 @@
     let inputEnabled = false;
     let comTimer = null;
 
-    const playerEl = document.getElementById('player');
-    const enemyEl = document.getElementById('enemy');
+    const contactPoint = document.getElementById('contact-point');
+    const playerWrapper = document.getElementById('player-wrapper');
+    const enemyWrapper = document.getElementById('enemy-wrapper');
     const inputAreaEl = document.getElementById('input-area');
     const inputMessageEl = document.getElementById('input-message');
     const overlay = document.getElementById('msg-overlay');
     const titleText = document.getElementById('title-text');
 
     function startGame() {
-        // --- 重複しない抽選ロジック ---
-        // 1. プレイヤーを抽選
         const pIndex = Math.floor(Math.random() * animals.length);
         const pChoice = animals[pIndex];
-
-        // 2. プレイヤー以外から敵を抽選
         const otherAnimals = animals.filter((_, index) => index !== pIndex);
         const eChoice = otherAnimals[Math.floor(Math.random() * otherAnimals.length)];
 
@@ -258,26 +256,22 @@
     }
 
     function startCountdown() {
-        showCountMessage('<span class="count-number">3</span>');
-        setTimeout(() => isPlaying && showCountMessage('<span class="count-number">2</span>'), 1000);
-        setTimeout(() => isPlaying && showCountMessage('<span class="count-number">1</span>'), 2000);
+        showCountMessage('3');
+        setTimeout(() => isPlaying && showCountMessage('2'), 1000);
+        setTimeout(() => isPlaying && showCountMessage('1'), 2000);
         setTimeout(() => {
             if (!isPlaying) return;
-            showCountMessage('はっけよーい、のこった！');
-            playerEl.classList.add('shaking-p');
-            enemyEl.classList.add('shaking-e');
+            showCountMessage('のこった！');
+            playerWrapper.classList.add('shaking');
+            enemyWrapper.classList.add('shaking');
             setTimeout(() => {
-                playerEl.classList.remove('shaking-p');
-                enemyEl.classList.remove('shaking-e');
+                playerWrapper.classList.remove('shaking');
+                enemyWrapper.classList.remove('shaking');
             }, 300);
 
             inputEnabled = true;
             inputAreaEl.classList.remove('disabled');
             scheduleNextComAttack();
-            
-            setTimeout(() => {
-                if (isPlaying && inputEnabled) showCountMessage('ここを たたいてね！');
-            }, 500);
         }, 3000);
     }
 
@@ -287,21 +281,24 @@
 
     function scheduleNextComAttack() {
         if (!isPlaying || !inputEnabled) return;
-
-        let delay;
-        // プレイヤーが勝利ライン(80%)の3タップ分(9%)手前、71%以上に到達したらブースト
-        if (playerPos >= 71) {
-            delay = 500 + Math.random() * 500; // 0.5〜1.0秒
+        
+        let min, max;
+        // プレイヤーが指定タップ数以上押し込んでいたらスピードアップ
+        if (playerPos >= DANGER_THRESHOLD) {
+            min = CONFIG.DANGER_SPEED_MIN;
+            max = CONFIG.DANGER_SPEED_MAX;
         } else {
-            delay = 1000 + Math.random() * 2000; // 通常
+            min = CONFIG.NORMAL_SPEED_MIN;
+            max = CONFIG.NORMAL_SPEED_MAX;
         }
         
+        const delay = min + Math.random() * (max - min);
         comTimer = setTimeout(comAttackLoop, delay);
     }
 
     function comAttackLoop() {
         if (!isPlaying || !inputEnabled) return;
-        playerPos -= 5;
+        playerPos -= CONFIG.COM_PUSH_POWER;
         checkWinner();
         if (isPlaying) scheduleNextComAttack();
     }
@@ -309,29 +306,22 @@
     function pushPlayer(e) {
         if (!isPlaying || !inputEnabled) return;
         if (e) e.preventDefault();
+        playerPos += CONFIG.PLAYER_TAP_POWER;
         
-        playerPos += 3;
-
         const x = e.clientX || (e.touches && e.touches[0].clientX) || window.innerWidth/2;
         const y = e.clientY || (e.touches && e.touches[0].clientY) || window.innerHeight * 0.8;
         createParticle(x, y);
-        
         checkWinner();
     }
 
     function updatePosition() {
-        // 二体の接点を常に一箇所に固定
-        playerEl.style.left = playerPos + '%';
-        enemyEl.style.left = playerPos + '%';
+        contactPoint.style.left = playerPos + '%';
     }
 
     function checkWinner() {
         updatePosition();
-        if (playerPos > 85) { // 端まで押し切るよう少し調整
-            endGame('やったー！<br>' + document.getElementById('p-name').innerText + 'の かち！ 👑');
-        } else if (playerPos < 15) {
-            endGame('ざんねん！<br>まけちゃった 😭');
-        }
+        if (playerPos > CONFIG.WIN_LINE) endGame('かち！ 👑');
+        else if (playerPos < CONFIG.LOSE_LINE) endGame('まけ... 😭');
     }
 
     function endGame(msg) {
@@ -340,17 +330,15 @@
         inputAreaEl.classList.add('disabled');
         if (comTimer) clearTimeout(comTimer);
         titleText.innerHTML = msg;
-        document.getElementById('start-btn').innerText = 'もう一回あそぶ';
         overlay.style.display = 'flex';
-        showCountMessage('');
     }
 
     function createParticle(x, y) {
         const p = document.createElement('div');
         p.className = 'particle';
         p.innerText = '⭐';
-        p.style.left = (x - 20) + 'px';
-        p.style.top = (y - 20) + 'px';
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
         document.body.appendChild(p);
         setTimeout(() => p.remove(), 500);
     }
