@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>どすこい！どうぶつ場所（完全内部管理版）</title>
+    <title>どすこい！どうぶつ場所（位置修正版）</title>
     <style>
         body {
             margin: 0;
@@ -27,14 +27,15 @@
             flex: 1;
             width: 100%;
             position: relative;
+            /* 土俵の模様。中央が分かりやすいよう少し濃いめに設定 */
             background: radial-gradient(circle, #e0c5a0 60%, #8b4513 61%, #8b4513 63%, transparent 64%);
             overflow: hidden;
         }
 
-        /* 接点となる透明な基準線 */
+        /* 接点となる透明な基準線。ここをtop:50%に修正 */
         #contact-point {
             position: absolute;
-            bottom: 50%;
+            top: 50%; 
             left: 50%;
             width: 0;
             height: 0;
@@ -44,7 +45,8 @@
 
         .animal-wrapper {
             position: absolute;
-            bottom: 0;
+            /* 自分の中心を基準線に合わせる */
+            transform: translateY(-50%); 
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -62,7 +64,7 @@
         }
 
         .emoji {
-            font-size: 80px;
+            font-size: 100px; /* 少し大きくしました */
             line-height: 1;
             display: block;
         }
@@ -70,19 +72,21 @@
         #p-emoji { transform: scaleX(1); }
         #e-emoji { transform: scaleX(-1); }
 
+        /* 星の位置を絶対配置にして、親要素の高さ計算に影響させないように変更 */
         .player-star {
             color: gold;
             font-size: 40px;
             position: absolute;
-            top: -45px;
+            top: -40px;
             left: 50%;
             transform: translateX(-50%);
             animation: star-blink 1s infinite alternate;
+            z-index: 20;
         }
 
         @keyframes star-blink {
-            0% { opacity: 0.5; transform: scale(1); }
-            100% { opacity: 1; transform: scale(1.2); }
+            0% { opacity: 0.5; transform: translateX(-50%) scale(1); }
+            100% { opacity: 1; transform: translateX(-50%) scale(1.2); }
         }
 
         .name-tag {
@@ -93,7 +97,10 @@
             color: #333;
             font-weight: bold;
             border: 2px solid #ccc;
-            margin-top: 5px;
+            position: absolute;
+            bottom: -30px; /* 名前を絵文字の下に固定 */
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         #input-area {
@@ -103,6 +110,7 @@
             justify-content: center;
             align-items: center;
             cursor: pointer;
+            box-shadow: 0 -10px 0 rgba(0,0,0,0.1);
         }
 
         #input-area.disabled { background-color: #ccc; }
@@ -133,6 +141,7 @@
             border: 4px solid #ff6347;
             margin-top: 20px;
             cursor: pointer;
+            box-shadow: 0 5px 0 #ccc;
         }
 
         #title-text {
@@ -140,6 +149,7 @@
             font-size: 36px;
             text-align: center;
             line-height: 1.4;
+            text-shadow: 2px 2px 0 #000;
         }
 
         .particle {
@@ -154,9 +164,9 @@
         }
 
         @keyframes shake {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(-5deg); }
-            75% { transform: rotate(5deg); }
+            0%, 100% { transform: translateY(-50%) rotate(0deg); }
+            25% { transform: translateY(-50%) rotate(-5deg); }
+            75% { transform: translateY(-50%) rotate(5deg); }
         }
         .shaking { animation: shake 0.2s ease-in-out infinite; }
     </style>
@@ -189,47 +199,27 @@
 
 <script>
     // ============================================================
-    // ★ データ編集エリア (ここを自由に書き換えてください) ★
+    // ★ データ編集エリア
     // ============================================================
-    
-    // プレイヤー（あなた）の設定
     const PLAYER_CONFIG = {
         name: "きみ",
         emoji: "🐘",
-        tapPower: 3       // 1タップで押す力 (%)
+        tapPower: 3
     };
 
-    // ステージごとの敵キャラクター設定 (上から順に登場します)
     const STAGE_DATA = [
-        {
-            name: "うさぎ", emoji: "🐰", comPower: 3.5,
-            normalMin: 1200, normalMax: 2000, 
-            dangerTap: 8, dangerMin: 600, dangerMax: 1200
-        },
-        {
-            name: "いぬ", emoji: "🐶", comPower: 4.5,
-            normalMin: 1000, normalMax: 1800, 
-            dangerTap: 7, dangerMin: 500, dangerMax: 1000
-        },
-        {
-            name: "とら", emoji: "🐯", comPower: 5.5,
-            normalMin: 800, normalMax: 1500, 
-            dangerTap: 6, dangerMin: 400, dangerMax: 800
-        },
-        {
-            name: "らいおん", emoji: "🦁", comPower: 7.0,
-            normalMin: 600, normalMax: 1200, 
-            dangerTap: 5, dangerMin: 300, dangerMax: 600
-        }
+        { name: "うさぎ", emoji: "🐰", comPower: 3.5, normalMin: 1200, normalMax: 2000, dangerTap: 8, dangerMin: 600, dangerMax: 1200 },
+        { name: "いぬ", emoji: "🐶", comPower: 4.5, normalMin: 1000, normalMax: 1800, dangerTap: 7, dangerMin: 500, dangerMax: 1000 },
+        { name: "とら", emoji: "🐯", comPower: 5.5, normalMin: 800, normalMax: 1500, dangerTap: 6, dangerMin: 400, dangerMax: 800 },
+        { name: "らいおん", emoji: "🦁", comPower: 7.5, normalMin: 600, normalMax: 1200, dangerTap: 5, dangerMin: 300, dangerMax: 600 }
     ];
 
-    const WIN_LINE = 85;  // これ以上押せば勝ち
-    const LOSE_LINE = 15; // これ以上押されたら負け
+    const WIN_LINE = 85; 
+    const LOSE_LINE = 15;
 
     // ============================================================
-    // ★ システム領域 (ここから下は基本いじらなくてOK) ★
+    // ★ システム領域
     // ============================================================
-
     let currentStageIndex = 0;
     let playerPos = 50; 
     let isPlaying = false;
@@ -244,24 +234,19 @@
     const overlay = document.getElementById('msg-overlay');
     const titleText = document.getElementById('title-text');
 
-    // 初期化
     document.getElementById('p-emoji').innerText = PLAYER_CONFIG.emoji;
     document.getElementById('p-name').innerText = PLAYER_CONFIG.name;
 
     function startGame() {
         const enemy = STAGE_DATA[currentStageIndex];
-        
-        // UI更新
         document.getElementById('e-emoji').innerText = enemy.emoji;
         document.getElementById('e-name').innerText = enemy.name;
-
         playerPos = 50; 
         updatePosition();
         overlay.style.display = 'none';
         isPlaying = true;
         inputEnabled = false;
         inputAreaEl.classList.add('disabled');
-
         if (comTimer) clearTimeout(comTimer);
         startCountdown();
     }
@@ -279,7 +264,6 @@
                 playerWrapper.classList.remove('shaking');
                 enemyWrapper.classList.remove('shaking');
             }, 300);
-
             inputEnabled = true;
             inputAreaEl.classList.remove('disabled');
             scheduleNextComAttack();
@@ -292,17 +276,14 @@
 
     function scheduleNextComAttack() {
         if (!isPlaying || !inputEnabled) return;
-        
         const enemy = STAGE_DATA[currentStageIndex];
         const dangerThreshold = 50 + (enemy.dangerTap * PLAYER_CONFIG.tapPower);
-
         let min, max;
         if (playerPos >= dangerThreshold) {
             min = enemy.dangerMin; max = enemy.dangerMax;
         } else {
             min = enemy.normalMin; max = enemy.normalMax;
         }
-        
         const delay = min + Math.random() * (max - min);
         comTimer = setTimeout(comAttackLoop, delay);
     }
@@ -318,7 +299,6 @@
         if (!isPlaying || !inputEnabled) return;
         if (e) e.preventDefault();
         playerPos += PLAYER_CONFIG.tapPower;
-        
         const x = e.clientX || (e.touches && e.touches[0].clientX) || window.innerWidth/2;
         const y = e.clientY || (e.touches && e.touches[0].clientY) || window.innerHeight * 0.8;
         createParticle(x, y);
