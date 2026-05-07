@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>どすこい！どうぶつ場所（バランス調整版）</title>
+    <title>どすこい！どうぶつ場所（完全内部管理版）</title>
     <style>
         body {
             margin: 0;
@@ -188,38 +188,49 @@
 </div>
 
 <script>
-    // ==========================================
-    //   バランス調整領域 (ここを書き換えて調整)
-    // ==========================================
-    const CONFIG = {
-        PLAYER_TAP_POWER: 3,      // 1タップでプレイヤーが押す力 (%)
-        COM_PUSH_POWER: 5,        // 敵の1攻撃で押し返される力 (%)
-        
-        WIN_LINE: 90,             // この%を超えたら勝利
-        LOSE_LINE: 10,            // この%を下回ったら敗北
-
-        // 敵のスピード設定（ミリ秒：1000 = 1秒）
-        NORMAL_SPEED_MIN: 1000,   // 通常時の敵攻撃間隔（最短）
-        NORMAL_SPEED_MAX: 2500,   // 通常時の敵攻撃間隔（最長）
-        
-        // 追い詰められた（敵が本気を出す）設定
-        DANGER_TAP_COUNT: 5,      // 中央(50%)から何タップ押し込んだら敵が本気になるか
-        DANGER_SPEED_MIN: 400,    // 本気時の敵攻撃間隔（最短）
-        DANGER_SPEED_MAX: 800    // 本気時の敵攻撃間隔（最長）
+    // ============================================================
+    // ★ データ編集エリア (ここを自由に書き換えてください) ★
+    // ============================================================
+    
+    // プレイヤー（あなた）の設定
+    const PLAYER_CONFIG = {
+        name: "きみ",
+        emoji: "🐘",
+        tapPower: 3       // 1タップで押す力 (%)
     };
 
-    // 本気モードが発動する座標を自動計算
-    const DANGER_THRESHOLD = 50 + (CONFIG.DANGER_TAP_COUNT * CONFIG.PLAYER_TAP_POWER);
-    // ==========================================
-
-    const animals = [
-        {emoji: '🐘', name: 'ぞう'}, {emoji: '🦁', name: 'らいおん'},
-        {emoji: '🐼', name: 'ぱんだ'}, {emoji: '🐯', name: 'とら'},
-        {emoji: '🐰', name: 'うさぎ'}, {emoji: '🐨', name: 'こあら'},
-        {emoji: '🐵', name: 'さる'}, {emoji: '🐸', name: 'かえる'},
-        {emoji: '🐶', name: 'いぬ'}, {emoji: '🐱', name: 'ねこ'}
+    // ステージごとの敵キャラクター設定 (上から順に登場します)
+    const STAGE_DATA = [
+        {
+            name: "うさぎ", emoji: "🐰", comPower: 3.5,
+            normalMin: 1200, normalMax: 2000, 
+            dangerTap: 8, dangerMin: 600, dangerMax: 1200
+        },
+        {
+            name: "いぬ", emoji: "🐶", comPower: 4.5,
+            normalMin: 1000, normalMax: 1800, 
+            dangerTap: 7, dangerMin: 500, dangerMax: 1000
+        },
+        {
+            name: "とら", emoji: "🐯", comPower: 5.5,
+            normalMin: 800, normalMax: 1500, 
+            dangerTap: 6, dangerMin: 400, dangerMax: 800
+        },
+        {
+            name: "らいおん", emoji: "🦁", comPower: 7.0,
+            normalMin: 600, normalMax: 1200, 
+            dangerTap: 5, dangerMin: 300, dangerMax: 600
+        }
     ];
 
+    const WIN_LINE = 85;  // これ以上押せば勝ち
+    const LOSE_LINE = 15; // これ以上押されたら負け
+
+    // ============================================================
+    // ★ システム領域 (ここから下は基本いじらなくてOK) ★
+    // ============================================================
+
+    let currentStageIndex = 0;
     let playerPos = 50; 
     let isPlaying = false;
     let inputEnabled = false;
@@ -233,16 +244,16 @@
     const overlay = document.getElementById('msg-overlay');
     const titleText = document.getElementById('title-text');
 
-    function startGame() {
-        const pIndex = Math.floor(Math.random() * animals.length);
-        const pChoice = animals[pIndex];
-        const otherAnimals = animals.filter((_, index) => index !== pIndex);
-        const eChoice = otherAnimals[Math.floor(Math.random() * otherAnimals.length)];
+    // 初期化
+    document.getElementById('p-emoji').innerText = PLAYER_CONFIG.emoji;
+    document.getElementById('p-name').innerText = PLAYER_CONFIG.name;
 
-        document.getElementById('p-emoji').innerText = pChoice.emoji;
-        document.getElementById('p-name').innerText = pChoice.name;
-        document.getElementById('e-emoji').innerText = eChoice.emoji;
-        document.getElementById('e-name').innerText = eChoice.name;
+    function startGame() {
+        const enemy = STAGE_DATA[currentStageIndex];
+        
+        // UI更新
+        document.getElementById('e-emoji').innerText = enemy.emoji;
+        document.getElementById('e-name').innerText = enemy.name;
 
         playerPos = 50; 
         updatePosition();
@@ -282,14 +293,14 @@
     function scheduleNextComAttack() {
         if (!isPlaying || !inputEnabled) return;
         
+        const enemy = STAGE_DATA[currentStageIndex];
+        const dangerThreshold = 50 + (enemy.dangerTap * PLAYER_CONFIG.tapPower);
+
         let min, max;
-        // プレイヤーが指定タップ数以上押し込んでいたらスピードアップ
-        if (playerPos >= DANGER_THRESHOLD) {
-            min = CONFIG.DANGER_SPEED_MIN;
-            max = CONFIG.DANGER_SPEED_MAX;
+        if (playerPos >= dangerThreshold) {
+            min = enemy.dangerMin; max = enemy.dangerMax;
         } else {
-            min = CONFIG.NORMAL_SPEED_MIN;
-            max = CONFIG.NORMAL_SPEED_MAX;
+            min = enemy.normalMin; max = enemy.normalMax;
         }
         
         const delay = min + Math.random() * (max - min);
@@ -298,7 +309,7 @@
 
     function comAttackLoop() {
         if (!isPlaying || !inputEnabled) return;
-        playerPos -= CONFIG.COM_PUSH_POWER;
+        playerPos -= STAGE_DATA[currentStageIndex].comPower;
         checkWinner();
         if (isPlaying) scheduleNextComAttack();
     }
@@ -306,7 +317,7 @@
     function pushPlayer(e) {
         if (!isPlaying || !inputEnabled) return;
         if (e) e.preventDefault();
-        playerPos += CONFIG.PLAYER_TAP_POWER;
+        playerPos += PLAYER_CONFIG.tapPower;
         
         const x = e.clientX || (e.touches && e.touches[0].clientX) || window.innerWidth/2;
         const y = e.clientY || (e.touches && e.touches[0].clientY) || window.innerHeight * 0.8;
@@ -320,17 +331,29 @@
 
     function checkWinner() {
         updatePosition();
-        if (playerPos > CONFIG.WIN_LINE) endGame('かち！ 👑');
-        else if (playerPos < CONFIG.LOSE_LINE) endGame('まけ... 😭');
+        if (playerPos > WIN_LINE) {
+            if (currentStageIndex < STAGE_DATA.length - 1) {
+                currentStageIndex++;
+                endGame('かち！ 👑<br>つぎの あいてが くるぞ！', 'つぎへ');
+            } else {
+                currentStageIndex = 0;
+                endGame('全ステージクリア！<br>きみが最強の横綱だ！ 🏆', 'もう一度あそぶ');
+            }
+        }
+        else if (playerPos < LOSE_LINE) {
+            endGame('まけ... 😭', 'もう一度あそぶ');
+        }
     }
 
-    function endGame(msg) {
+    function endGame(msg, btnText) {
         isPlaying = false;
         inputEnabled = false;
         inputAreaEl.classList.add('disabled');
         if (comTimer) clearTimeout(comTimer);
         titleText.innerHTML = msg;
+        document.getElementById('start-btn').innerText = btnText;
         overlay.style.display = 'flex';
+        showCountMessage('');
     }
 
     function createParticle(x, y) {
